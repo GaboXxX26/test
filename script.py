@@ -66,24 +66,66 @@ def anterior():
 def terminar_examen():
     correctas = 0
     errores = []
-    for i, row in preguntas.iterrows():
-        correcta = row['Respuesta Correcta'].strip().upper()
-        usuario = respuestas_usuario[i]
-        if usuario == correcta:
+
+    for i, pregunta in enumerate(preguntas):
+        seleccion = respuestas_usuario[i]
+        if seleccion == '':
+            seleccion = '-'
+        correcta_idx = pregunta['correcta_idx']
+        if str(seleccion) == str(correcta_idx):
             correctas += 1
         else:
-            errores.append((i+1, usuario, correcta, row['Pregunta']))
-    
+            errores.append({
+                "numero": i + 1,
+                "tu": chr(65 + int(seleccion)) if seleccion != '-' else "-",
+                "corr": chr(65 + correcta_idx),
+                "texto": pregunta['pregunta']
+            })
+
     nota = round((correctas / 60) * 20, 2)
-    resumen = f"✔️ Correctas: {correctas}\n❌ Incorrectas: {60 - correctas}\n📈 Nota: {nota}/20"
+
+    # === NUEVA VENTANA DE RESULTADOS ===
+    resultado_win = tk.Toplevel(root)
+    resultado_win.title("Resultados del Examen")
+    resultado_win.geometry("800x600")
+
+    resumen = f"📊 RESULTADOS DEL EXAMEN\n\n"
+    resumen += f"✔️ Correctas: {correctas}\n"
+    resumen += f"❌ Incorrectas: {60 - correctas}\n"
+    resumen += f"📈 Nota: {nota} / 20\n\n"
+
+    label_resumen = tk.Label(resultado_win, text=resumen, justify="left", font=("Arial", 13), anchor="w")
+    label_resumen.pack(padx=10, pady=10, anchor="w")
 
     if errores:
-        resumen += "\n\n🔎 Preguntas incorrectas:\n"
-        for num, tu, corr, texto in errores:
-            resumen += f"{num}. Tu respuesta: {tu} | Correcta: {corr}\n   {texto[:70]}...\n"
+        frame_scroll = tk.Frame(resultado_win)
+        frame_scroll.pack(fill="both", expand=True, padx=10, pady=10)
 
-    messagebox.showinfo("Resultados", resumen)
-    root.quit()
+        canvas = tk.Canvas(frame_scroll)
+        scrollbar = tk.Scrollbar(frame_scroll, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        for err in errores:
+            tk.Label(scrollable_frame, text=f"{err['numero']}. Tu respuesta: {err['tu']} | Correcta: {err['corr']}",
+                     font=("Arial", 11, "bold"), anchor="w", justify="left").pack(anchor="w", pady=(5, 0))
+            tk.Label(scrollable_frame, text=f"   {err['texto']}", wraplength=750,
+                     font=("Arial", 11), justify="left", fg="gray").pack(anchor="w")
+
+    # Botón para cerrar
+    btn_cerrar = tk.Button(resultado_win, text="Cerrar", command=root.quit)
+    btn_cerrar.pack(pady=15)
+
 
 # === TEMPORIZADOR ===
 def actualizar_timer():
